@@ -1,0 +1,53 @@
+services:
+  db:
+    image: postgres:15
+    container_name: habitos_db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: habitos_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - habitos-net
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build: ./Backend
+    container_name: habitos_backend
+    depends_on:
+      db:
+        condition: service_healthy   # 💥 CLAVE
+    environment:
+      DATABASE_URL: postgres://admin:admin@db:5432/habitos_db?sslmode=disable
+    ports:
+      - "8080:8080"
+    networks:
+       - habitos-net
+  frontend:
+    build:
+      context: ./frontend
+    container_name: habitos_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8080  # 👈 nombre del servicio del backend
+    depends_on:
+      - backend
+    networks:
+      - habitos-net
+    
+
+volumes:
+  db_data:
+
+networks:
+  habitos-net:
